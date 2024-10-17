@@ -30,6 +30,7 @@ playerX = 370
 playerY = 480
 playerX_change = 0
 player_speed = 5
+playerY_change = 0
 
 #criando o inimigo
 enemyImg = []
@@ -71,6 +72,9 @@ GAME_FONT = pygame.font.Font('freesansbold.ttf', 32)
 TITLE_FONT = pygame.font.Font('freesansbold.ttf', 64)
 start_button = pygame.Rect(300, 400, 200, 50)
 
+# Sistema de vidas
+player_lives = 3
+
 # Modifique a função draw_initial_screen
 def draw_initial_screen():
     # Use a imagem de fundo que já carregamos
@@ -86,6 +90,8 @@ def draw_initial_screen():
 def show_score(x, y):
     score = font.render("Pontuação: " + str(score_value), True, (255, 255, 255))
     screen.blit(score, (x, y))
+    lives = font.render("Vidas: " + str(player_lives), True, (255, 255, 255))
+    screen.blit(lives, (x, y + 40))
 
 def game_over_text(x, y):
     go = go_font.render("FIM DE JOGO", True, (255, 255, 255))
@@ -102,7 +108,7 @@ def enemy(x, y, i):
 def fire_bullet(x, y):
     global bullet_state
     bullet_state = "fire"
-    screen.blit(bulletImg, (x + 16, y + 10))
+    screen.blit(bulletImg, (x + playerImg.get_width() // 2 - bulletImg.get_width() // 2, y))
     
 def burst(x, y):
     screen.blit(burstImg, (x, y))
@@ -115,13 +121,14 @@ def isCollision(enemyX, enemyY, bulletX, bulletY):
         return False
 
 def reset_game():
-    global score_value, playerX, playerY, bulletX, bulletY, bullet_state
+    global score_value, playerX, playerY, bulletX, bulletY, bullet_state, player_lives
     score_value = 0
     playerX = 370
     playerY = 480
     bulletX = 0
     bulletY = 480
     bullet_state = "ready"
+    player_lives = 3
     for i in range(num_of_enemies):
         enemyX[i] = random.randint(0, 735)
         enemyY[i] = random.randint(50, 150)
@@ -155,13 +162,18 @@ while running:
                     playerX_change = -player_speed
                 if event.key == pygame.K_RIGHT:
                     playerX_change = player_speed
+                if event.key == pygame.K_UP:
+                    playerY_change = -player_speed
+                if event.key == pygame.K_DOWN:
+                    playerY_change = player_speed
                 if event.key == pygame.K_SPACE:
-                    if bullet_state is "ready":
+                    if bullet_state == "ready":  # Use '==' for comparison
                         #criando som de laser
                         laser = mixer.Sound('laser.wav')
                         laser.play()
                         #obtendo a coordenada x da nave espacial
-                        bulletX = playerX
+                        bulletX = playerX + playerImg.get_width() // 2 - bulletImg.get_width() // 2
+                        bulletY = playerY  # Start bullet from player's current Y position
                         fire_bullet(bulletX, bulletY)
                 if game_over:
                     if event.key == pygame.K_r:
@@ -172,18 +184,23 @@ while running:
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
                     playerX_change = 0
+                if event.key == pygame.K_UP or event.key == pygame.K_DOWN:
                     playerY_change = 0
             
         if not game_over:
             playerX += playerX_change
+            playerY += playerY_change
             
-            #adicionando hitbox da tela
-            
-            #jogador dentro do limite da janela
+            # jogador dentro do limite da janela
             if playerX <= 0:
                 playerX = 0
             elif playerX >= 736:
                 playerX = 736
+            
+            if playerY <= 0:
+                playerY = 0
+            elif playerY >= 536:  # Ajuste o valor conforme necessário para o limite inferior
+                playerY = 536
             
             #movimento do inimigo
             for i in range(num_of_enemies):
@@ -203,10 +220,10 @@ while running:
                     enemyX_change[i] = -5
                     enemyY[i] += enemyY_change[i]
                     
-                #Colisão
-                collision = isCollision(enemyX[i], enemyY[i], bulletX, bulletY)
-                if collision:
-                    #criando som de colisão
+                # Colisão da bala com o inimigo
+                collision_bullet = isCollision(enemyX[i], enemyY[i], bulletX, bulletY)
+                if collision_bullet and bullet_state == "fire":
+                    # Criando som de colisão
                     burst(enemyX[i], enemyY[i])
                     explosion = mixer.Sound('explosion.wav')
                     explosion.play()
@@ -215,7 +232,27 @@ while running:
                     score_value += 1
                     enemyX[i] = random.randint(0, 735)
                     enemyY[i] = random.randint(50, 150)
-                
+
+                # Colisão do inimigo com a nave
+                collision_player = isCollision(enemyX[i], enemyY[i], playerX, playerY)
+                if collision_player:
+                    burst(enemyX[i], enemyY[i])
+                    explosion_sound = mixer.Sound('explosion.wav')
+                    explosion_sound.play()
+                    player_lives -= 1
+                    if player_lives <= 0:
+                        for j in range(num_of_enemies):
+                            enemyY[j] = 2000
+                        game_over = True
+                        break
+                    else:
+                        # Reset player position
+                        playerX = 370
+                        playerY = 480
+                        # Reset enemy position
+                        enemyX[i] = random.randint(0, 735)
+                        enemyY[i] = random.randint(50, 150)
+
                 enemy(enemyX[i], enemyY[i], i)
                 
             #movimento da bala
@@ -223,7 +260,7 @@ while running:
                 bulletY = 480
                 bullet_state = "ready"
             
-            if bullet_state is "fire":
+            if bullet_state == "fire":  # Use '==' for comparison
                 fire_bullet(bulletX, bulletY)
                 bulletY -= bulletY_change
             
