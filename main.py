@@ -2,6 +2,7 @@ import pygame
 import random
 import math
 from pygame import mixer
+import time
 
 #inicializa o pygame
 pygame.init()
@@ -17,8 +18,15 @@ pygame.display.set_caption('Space Invaders')
 icon = pygame.image.load('airship.png')
 pygame.display.set_icon(icon)
 
-#configurando o fundo
+#configurando os fundos
 background = pygame.image.load('background.png')
+stage_backgrounds = [
+    pygame.image.load('stage1.png'),
+    pygame.image.load('stage2.png'),
+    pygame.image.load('stage3.png'),
+    pygame.image.load('stage4.png'),
+]
+current_stage = 0
 
 #música de fundo
 mixer.music.load('bg-music.wav')
@@ -75,9 +83,13 @@ start_button = pygame.Rect(300, 400, 200, 50)
 # Sistema de vidas
 player_lives = 3
 
+# Variáveis para controle de fases
+phase_start_time = 0
+phase_duration = 10  # duração de cada fase em segundos
+
 # Modifique a função draw_initial_screen
 def draw_initial_screen():
-    # Use a imagem de fundo que já carregamos
+    # Use a imagem de fundo inicial
     screen.blit(background, (0, 0))
     
     title = TITLE_FONT.render("SPACE INVADERS", True, (255, 255, 255))
@@ -121,7 +133,7 @@ def isCollision(enemyX, enemyY, bulletX, bulletY):
         return False
 
 def reset_game():
-    global score_value, playerX, playerY, bulletX, bulletY, bullet_state, player_lives
+    global score_value, playerX, playerY, bulletX, bulletY, bullet_state, player_lives, phase_start_time, current_stage
     score_value = 0
     playerX = 370
     playerY = 480
@@ -129,6 +141,8 @@ def reset_game():
     bulletY = 480
     bullet_state = "ready"
     player_lives = 3
+    phase_start_time = time.time()
+    current_stage = 0
     for i in range(num_of_enemies):
         enemyX[i] = random.randint(0, 735)
         enemyY[i] = random.randint(50, 150)
@@ -147,11 +161,19 @@ while running:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if start_button.collidepoint(event.pos):
                     game_started = True
+                    phase_start_time = time.time()
     else:
         #cor de fundo da tela
         screen.fill((0,0,0))
         #imagem de fundo
-        screen.blit(background, (0, 0))
+        screen.blit(stage_backgrounds[current_stage], (0, 0))
+        
+        # Verifica se é hora de mudar de fase
+        current_time = time.time()
+        if current_time - phase_start_time > phase_duration:
+            current_stage = (current_stage + 1) % len(stage_backgrounds)
+            phase_start_time = current_time
+        
         for event in pygame.event.get(): #obtém um evento ocorrendo na tela (mouse ou teclado)
             if event.type == pygame.QUIT:
                 running = False
