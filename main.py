@@ -15,25 +15,25 @@ clock = pygame.time.Clock()
 pygame.display.set_caption('Space Invaders')
 
 #define o ícone do jogo
-icon = pygame.image.load('airship.png')
+icon = pygame.image.load('./assets/player/nave.png')
 pygame.display.set_icon(icon)
 
 #configurando os fundos
-background = pygame.image.load('background.png')
+background = pygame.image.load('./assets/backgrounds/background.png')
 stage_backgrounds = [
-    pygame.image.load('stage1.png'),
-    pygame.image.load('stage2.png'),
-    pygame.image.load('stage3.png'),
-    pygame.image.load('stage4.png'),
+    pygame.image.load('./assets/backgrounds/stage1.png'),
+    pygame.image.load('./assets/backgrounds/stage2.png'),
+    pygame.image.load('./assets/backgrounds/stage3.png'),
+    pygame.image.load('./assets/backgrounds/stage4.png'),
 ]
 current_stage = 0
 
 #música de fundo
-mixer.music.load('bg-music.wav')
+mixer.music.load('./assets/sound/bg-music.wav')
 mixer.music.play(-1)
 
 #criando o jogador
-playerImg = pygame.image.load('player.png')
+playerImg = pygame.image.load('./assets/player/nave.png')
 playerX = 370
 playerY = 480
 playerX_change = 0
@@ -49,21 +49,21 @@ enemyY_change = []
 num_of_enemies = 6
 
 for i in range(num_of_enemies):
-    enemyImg.append(pygame.image.load('enemy.png'))
+    enemyImg.append(pygame.image.load('./assets/enemies/enemy.png'))
     enemyX.append(random.randint(0, 735))
     enemyY.append(random.randint(50, 150))
     enemyX_change.append(5)
     enemyY_change.append(40)
 
 #criando bala - estado pronto: bala não visível - estado de fogo: bala visível
-bulletImg = pygame.image.load('bullet.png')
+bulletImg = pygame.image.load('./assets/elements/bullet.png')
 bulletX = 0
 bulletY = 480
 bulletY_change = 10
 bullet_state = "ready"
 
 #imagem de explosão
-burstImg = pygame.image.load('burst.png')
+burstImg = pygame.image.load('./assets/elements/burst.png')
 
 #pontuação
 score_value = 0
@@ -191,7 +191,7 @@ while running:
                 if event.key == pygame.K_SPACE:
                     if bullet_state == "ready":  # Use '==' for comparison
                         #criando som de laser
-                        laser = mixer.Sound('laser.wav')
+                        laser = mixer.Sound('./assets/sound/laser.wav')
                         laser.play()
                         #obtendo a coordenada x da nave espacial
                         bulletX = playerX + playerImg.get_width() // 2 - bulletImg.get_width() // 2
@@ -247,7 +247,7 @@ while running:
                 if collision_bullet and bullet_state == "fire":
                     # Criando som de colisão
                     burst(enemyX[i], enemyY[i])
-                    explosion = mixer.Sound('explosion.wav')
+                    explosion = mixer.Sound('./assets/sound/explosion.wav')
                     explosion.play()
                     bulletY = 480
                     bullet_state = "ready"
@@ -259,7 +259,7 @@ while running:
                 collision_player = isCollision(enemyX[i], enemyY[i], playerX, playerY)
                 if collision_player:
                     burst(enemyX[i], enemyY[i])
-                    explosion_sound = mixer.Sound('explosion.wav')
+                    explosion_sound = mixer.Sound('./assets/sound/explosion.wav')
                     explosion_sound.play()
                     player_lives -= 1
                     if player_lives <= 0:
