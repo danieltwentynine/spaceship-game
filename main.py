@@ -37,8 +37,8 @@ stage_backgrounds = [
 current_stage = 0
 
 # Carrega e inicia a música de fundo em loop infinito
-mixer.music.load('./assets/sound/bg-music.wav')
-mixer.music.play(-1)
+# mixer.music.load('./assets/sound/bg-music.wav')
+# mixer.music.play(-1)
 
 # Carrega e configura a imagem do jogador
 playerImg = pygame.image.load('./assets/player/nave.png')
@@ -134,47 +134,54 @@ transition_delay = 1000  # 1 segundo de delay
 transition_start_time = 0
 transition_speed = 3  # Velocidade do fade
 
+# Adicione estas variáveis globais no início do arquivo, junto com as outras
+transition_surface = pygame.Surface((800, 600))
+transition_surface.fill((0, 0, 0))
+waiting_for_next_stage = False
+
 # Função para desenhar a transição de fase
 def draw_transition():
-    global transition_alpha, transitioning, transition_direction, transition_start_time
+    global transition_alpha, transitioning, transition_direction, transition_start_time, game_started, waiting_for_next_stage, enemies_destroyed
+    
     if transitioning:
-        # Calcula o tempo desde o início da transição
         current_time = pygame.time.get_ticks()
-        elapsed_time = current_time - transition_start_time
-
-        # Aplica o delay antes de iniciar o fade
-        if elapsed_time < transition_delay:
-            # Durante o delay, mantém a tela preta e mostra o texto da fase
-            overlay = pygame.Surface((800, 600))
-            overlay.fill((0, 0, 0))
-            screen.blit(overlay, (0, 0))
-            
-            stage_text = TITLE_FONT.render(f"Fase {current_stage + 1}", True, (255, 255, 255))
-            stage_text_rect = stage_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))
-            screen.blit(stage_text, stage_text_rect)
-            return
-
-        # Atualiza o alpha para o efeito de fade
-        transition_alpha = max(0, min(255, transition_alpha + (transition_direction * transition_speed)))
-
-        # Desenha um overlay preto com alpha variável
-        overlay = pygame.Surface((800, 600))
-        overlay.fill((0, 0, 0))
-        overlay.set_alpha(transition_alpha)
-        screen.blit(overlay, (0, 0))
-
-        # Exibe o nome da fase apenas durante o fade in
+        
+        # Fade out (escurecer)
         if transition_direction == 1:
-            stage_text = TITLE_FONT.render(f"Fase {current_stage + 1}", True, (255, 255, 255))
-            stage_text_rect = stage_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))
-            screen.blit(stage_text, stage_text_rect)
-
-        # Verifica se o fade in ou fade out terminou
-        if transition_alpha >= 255 and transition_direction == 1:
-            transition_direction = -1  # Inicia o fade out
-            transition_start_time = current_time  # Reinicia o tempo para o delay
-        elif transition_alpha <= 0 and transition_direction == -1:
-            transitioning = False  # Termina a transição
+            transition_alpha = min(255, transition_alpha + transition_speed)
+            transition_surface.set_alpha(transition_alpha)
+            screen.blit(transition_surface, (0, 0))
+            
+            # Quando completar o fade out
+            if transition_alpha >= 255:
+                # Reseta posições dos inimigos
+                for i in range(num_of_enemies):
+                    enemyX[i] = random.randint(0, 735)
+                    enemyY[i] = random.randint(50, 150)
+                
+                # Mostra texto da próxima fase
+                stage_text = TITLE_FONT.render(f"Fase {current_stage + 1}", True, (255, 255, 255))
+                stage_text_rect = stage_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))
+                screen.blit(stage_text, stage_text_rect)
+                
+                # Aguarda input do jogador
+                press_text = GAME_FONT.render("Pressione ESPAÇO para continuar", True, (255, 255, 255))
+                press_rect = press_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2 + 50))
+                screen.blit(press_text, press_rect)
+                
+                waiting_for_next_stage = True
+                transition_direction = -1
+        
+        # Fade in (clarear)
+        elif transition_direction == -1 and not waiting_for_next_stage:
+            transition_alpha = max(0, transition_alpha - transition_speed)
+            transition_surface.set_alpha(transition_alpha)
+            screen.blit(transition_surface, (0, 0))
+            
+            # Quando completar o fade in
+            if transition_alpha <= 0:
+                transitioning = False
+                enemies_destroyed = 0
 
 # Função para desenhar a tela inicial
 def draw_initial_screen():
@@ -272,6 +279,8 @@ while running:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if start_button.collidepoint(event.pos):
                     game_started = True
+                    # Reinicia a fase atual
+                    reset_game()
     else:
         # Limpa a tela com cor preta
         screen.fill((0,0,0))
@@ -285,8 +294,14 @@ while running:
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    if bullet_state == "ready":
+                    # Verifica se está esperando para iniciar próxima fase
+                    if waiting_for_next_stage:
+                        waiting_for_next_stage = False
+                        
+                    # Tiro normal do jogo
+                    elif bullet_state == "ready":
                         laser = mixer.Sound('./assets/sound/laser.wav')
+                        laser.set_volume(0.5)  # 70% do volume original
                         laser.play()
                         bulletX = playerX + playerImg.get_width() // 2 - bulletImg.get_width() // 2
                         bulletY = playerY
@@ -346,6 +361,7 @@ while running:
                 collision_bullet = isCollision(enemyX[i], enemyY[i], bulletX, bulletY)
                 if collision_bullet and bullet_state == "fire":
                     explosion = mixer.Sound('./assets/sound/explosion.wav')
+                    explosion.set_volume(0.5)  # 70% do volume original
                     explosion.play()
                     bulletY = 480
                     bullet_state = "ready"
@@ -358,7 +374,6 @@ while running:
                     # Verifica se é hora de mudar de fase
                     if enemies_destroyed >= 15 and not transitioning:
                         current_stage = (current_stage + 1) % len(stage_backgrounds)
-                        enemies_destroyed = 0  # Reseta o contador
                         transitioning = True
                         transition_alpha = 0
                         transition_direction = 1
@@ -371,6 +386,7 @@ while running:
                 collision_player = isCollision(enemyX[i], enemyY[i], playerX, playerY)
                 if collision_player:
                     explosion_sound = mixer.Sound('./assets/sound/explosion.wav')
+                    explosion_sound.set_volume(0.7)  # 70% do volume original
                     explosion_sound.play()
                     player_lives -= 1
                     if player_lives <= 0:
