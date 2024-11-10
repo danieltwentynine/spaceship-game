@@ -26,19 +26,6 @@ pygame.display.set_icon(icon)
 
 # Carrega a imagem de fundo principal
 background = pygame.image.load('./assets/backgrounds/background.png')
-# Carrega as imagens de fundo para cada fase do jogo
-stage_backgrounds = [
-    pygame.image.load('./assets/backgrounds/stage1.png'),
-    pygame.image.load('./assets/backgrounds/stage2.png'),
-    pygame.image.load('./assets/backgrounds/stage3.png'),
-    pygame.image.load('./assets/backgrounds/stage4.png'),
-]
-# Define a fase atual como 0 (primeira fase)
-current_stage = 0
-
-# Carrega e inicia a música de fundo em loop infinito
-# mixer.music.load('./assets/sound/bg-music.wav')
-# mixer.music.play(-1)
 
 # Carrega e configura a imagem do jogador
 playerImg = pygame.image.load('./assets/player/nave.png')
@@ -124,64 +111,28 @@ player_blink_start = 0
 player_blink_duration = 2000  # 2 segundos de piscar
 player_blink_interval = 200  # Pisca a cada 200ms
 
-# Variável para contar inimigos destruídos
-enemies_destroyed = 0
-# Variáveis para controle de transição de fase
-transitioning = False
-transition_alpha = 0
-transition_direction = 1  # 1 para fade in, -1 para fade out
-transition_delay = 1000  # 1 segundo de delay
-transition_start_time = 0
-transition_speed = 3  # Velocidade do fade
+# Variável para controlar o estado de pausa
+paused = False
 
-# Adicione estas variáveis globais no início do arquivo, junto com as outras
-transition_surface = pygame.Surface((800, 600))
-transition_surface.fill((0, 0, 0))
-waiting_for_next_stage = False
-
-# Função para desenhar a transição de fase
-def draw_transition():
-    global transition_alpha, transitioning, transition_direction, transition_start_time, game_started, waiting_for_next_stage, enemies_destroyed
+# Função para mostrar a tela de pausa
+def pause_screen():
+    # Desenha o fundo da tela de pausa
+    screen.fill((0, 0, 0))
+    screen.blit(background, (0, 0))
     
-    if transitioning:
-        current_time = pygame.time.get_ticks()
-        
-        # Fade out (escurecer)
-        if transition_direction == 1:
-            transition_alpha = min(255, transition_alpha + transition_speed)
-            transition_surface.set_alpha(transition_alpha)
-            screen.blit(transition_surface, (0, 0))
-            
-            # Quando completar o fade out
-            if transition_alpha >= 255:
-                # Reseta posições dos inimigos
-                for i in range(num_of_enemies):
-                    enemyX[i] = random.randint(0, 735)
-                    enemyY[i] = random.randint(50, 150)
-                
-                # Mostra texto da próxima fase
-                stage_text = TITLE_FONT.render(f"Fase {current_stage + 1}", True, (255, 255, 255))
-                stage_text_rect = stage_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))
-                screen.blit(stage_text, stage_text_rect)
-                
-                # Aguarda input do jogador
-                press_text = GAME_FONT.render("Pressione ESPAÇO para continuar", True, (255, 255, 255))
-                press_rect = press_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2 + 50))
-                screen.blit(press_text, press_rect)
-                
-                waiting_for_next_stage = True
-                transition_direction = -1
-        
-        # Fade in (clarear)
-        elif transition_direction == -1 and not waiting_for_next_stage:
-            transition_alpha = max(0, transition_alpha - transition_speed)
-            transition_surface.set_alpha(transition_alpha)
-            screen.blit(transition_surface, (0, 0))
-            
-            # Quando completar o fade in
-            if transition_alpha <= 0:
-                transitioning = False
-                enemies_destroyed = 0
+    # Título de pausa
+    pause_title = go_font.render("PAUSA", True, (255, 255, 255))
+    pause_rect = pause_title.get_rect(center=(screen.get_width() // 2, 200))
+    screen.blit(pause_title, pause_rect)
+    
+    # Instruções para retomar/sair
+    resume_text = font.render("Pressione ESC para Retomar", True, (255, 255, 255))
+    resume_rect = resume_text.get_rect(center=(screen.get_width() // 2, 300))
+    screen.blit(resume_text, resume_rect)
+    
+    quit_text = font.render("Pressione Q para Sair", True, (255, 255, 255))
+    quit_rect = quit_text.get_rect(center=(screen.get_width() // 2, 350))
+    screen.blit(quit_text, quit_rect)
 
 # Função para desenhar a tela inicial
 def draw_initial_screen():
@@ -208,9 +159,17 @@ def show_score(x, y):
 
 # Função para mostrar texto de fim de jogo
 def game_over_text():
-    go = go_font.render("FIM DE JOGO", True, (255, 255, 255))
-    go_rect = go.get_rect(center=(screen.get_width() // 2, 250))
-    screen.blit(go, go_rect)
+    # Título de game over
+    over_text = go_font.render("GAME OVER", True, (255, 255, 255))
+    over_rect = over_text.get_rect(center=(screen.get_width() // 2, 200))
+    screen.blit(over_text, over_rect)
+    
+    # Pontuação final
+    final_score = font.render(f"Pontuação Final: {score_value}", True, (255, 255, 255))
+    score_rect = final_score.get_rect(center=(screen.get_width() // 2, 280))
+    screen.blit(final_score, score_rect)
+    
+    # Instruções para reiniciar/sair
     restart = font.render("Pressione R para Reiniciar ou Q para Sair", True, (255, 255, 255))
     restart_rect = restart.get_rect(center=(screen.get_width() // 2, 350))
     screen.blit(restart, restart_rect)
@@ -241,7 +200,7 @@ def isCollision(enemyX, enemyY, bulletX, bulletY):
 
 # Função para reiniciar o jogo
 def reset_game():
-    global score_value, playerX, playerY, bulletX, bulletY, bullet_state, player_lives, current_stage, enemies_destroyed
+    global score_value, playerX, playerY, bulletX, bulletY, bullet_state, player_lives
     score_value = 0
     playerX = 370
     playerY = 480
@@ -249,8 +208,6 @@ def reset_game():
     bulletY = 480
     bullet_state = "ready"
     player_lives = 3
-    current_stage = 0
-    enemies_destroyed = 0
     for i in range(num_of_enemies):
         enemyX[i] = random.randint(0, 735)
         enemyY[i] = random.randint(50, 150)
@@ -281,11 +238,23 @@ while running:
                     game_started = True
                     # Reinicia a fase atual
                     reset_game()
+    elif paused:
+        # Mostra a tela de pausa
+        pause_screen()
+        pygame.display.update()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    paused = False  # Retoma o jogo
+                elif event.key == pygame.K_q:
+                    running = False  # Sai do jogo
     else:
         # Limpa a tela com cor preta
         screen.fill((0,0,0))
-        # Desenha o fundo da fase atual
-        screen.blit(stage_backgrounds[current_stage], (0, 0))
+        # Desenha o fundo
+        screen.blit(background, (0, 0))
         
         # Processa eventos do pygame
         for event in pygame.event.get():
@@ -293,25 +262,35 @@ while running:
                 running = False
 
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    # Verifica se está esperando para iniciar próxima fase
-                    if waiting_for_next_stage:
-                        waiting_for_next_stage = False
-                        
-                    # Tiro normal do jogo
-                    elif bullet_state == "ready":
+                # Verifica se o jogo acabou
+                if game_over:
+                    if event.key == pygame.K_r:  # Tecla R para reiniciar
+                        game_over = False
+                        reset_game()
+                    elif event.key == pygame.K_q:  # Tecla Q para sair
+                        running = False
+                else:
+                    if event.key == pygame.K_SPACE:
+                        if bullet_state == "ready":
+                            laser = mixer.Sound('./assets/sound/laser.wav')
+                            laser.set_volume(0.5)
+                            laser.play()
+                            bulletX = playerX + playerImg.get_width() // 2 - bulletImg.get_width() // 2
+                            bulletY = playerY
+                            fire_bullet(bulletX, bulletY)
+                    elif event.key == pygame.K_ESCAPE:
+                        paused = True  # Pausa o jogo
+
+            # Adiciona o evento de clique do mouse
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # Botão esquerdo do mouse
+                    if bullet_state == "ready":
                         laser = mixer.Sound('./assets/sound/laser.wav')
-                        laser.set_volume(0.5)  # 70% do volume original
+                        laser.set_volume(0.5)
                         laser.play()
                         bulletX = playerX + playerImg.get_width() // 2 - bulletImg.get_width() // 2
                         bulletY = playerY
                         fire_bullet(bulletX, bulletY)
-                if game_over:
-                    if event.key == pygame.K_r:
-                        game_over = False
-                        reset_game()
-                    elif event.key == pygame.K_q:
-                        running = False
 
         if not game_over:
             # Obtém a posição do mouse
@@ -361,26 +340,14 @@ while running:
                 collision_bullet = isCollision(enemyX[i], enemyY[i], bulletX, bulletY)
                 if collision_bullet and bullet_state == "fire":
                     explosion = mixer.Sound('./assets/sound/explosion.wav')
-                    explosion.set_volume(0.5)  # 70% do volume original
+                    explosion.set_volume(0.7)
                     explosion.play()
                     bulletY = 480
                     bullet_state = "ready"
                     score_value += 1
-                    enemies_destroyed += 1  # Incrementa o contador de inimigos destruídos
 
                     # Inicia animação de explosão
                     exploding_enemies[i] = {'timer': 0}
-
-                    # Verifica se é hora de mudar de fase
-                    if enemies_destroyed >= 15 and not transitioning:
-                        current_stage = (current_stage + 1) % len(stage_backgrounds)
-                        transitioning = True
-                        transition_alpha = 0
-                        transition_direction = 1
-                        transition_start_time = pygame.time.get_ticks()
-
-                    # Desenha a transição de fase se necessário
-                    draw_transition()
 
                 # Verifica colisão entre inimigo e jogador
                 collision_player = isCollision(enemyX[i], enemyY[i], playerX, playerY)
@@ -427,7 +394,9 @@ while running:
             # Mostra pontuação e vidas
             show_score(textX, textY)
         else:
-            # Mostra tela de fim de jogo
+            # Limpa a tela
+            screen.fill((0, 0, 0))
+            screen.blit(background, (0, 0))
             game_over_text()
         
         # Atualiza a tela
