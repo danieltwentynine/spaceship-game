@@ -49,7 +49,7 @@ num_of_enemies = 6
 
 # Inicializa cada inimigo com posições e velocidades aleatórias
 for i in range(num_of_enemies):
-    enemyImg.append(pygame.image.load('./assets/enemies/enemy.png'))
+    enemyImg.append(pygame.transform.scale(pygame.image.load('./assets/enemies/enemy.png'), (60, 60)))
     enemyX.append(random.randint(0, 735))
     enemyY.append(random.randint(50, 150))
     enemyX_change.append(5)
