@@ -224,6 +224,27 @@ game_over = False
 exploding_enemies = {}
 EXPLOSION_DURATION = 30  # Duração da explosão em frames
 
+# Variáveis do chefão
+bossImg = pygame.image.load('./assets/enemies/boss.png')
+bossImg = pygame.transform.scale(bossImg, (200, 200))  # Redimensiona para 200x200
+bossX = 300  # Ajusta a posição inicial para centralizar
+bossY = -200  # Começa fora da tela
+bossY_change = 2
+boss_active = False
+boss_hits = 0  # Contador de acertos no chefão
+BOSS_HIT_LIMIT = 12  # Número de acertos necessários para derrotar o chefão
+
+# Variáveis para animação de explosão
+exploding_boss = None
+EXPLOSION_DURATION = 30  # Duração da explosão em frames
+
+# Função para desenhar o chefão
+def boss(x, y):
+    screen.blit(bossImg, (x, y))
+
+# Variável para controlar o tempo de jogo
+start_time = pygame.time.get_ticks()
+
 # Loop principal do jogo
 while running:
     if not game_started:
@@ -393,6 +414,45 @@ while running:
             
             # Mostra pontuação e vidas
             show_score(textX, textY)
+
+            # Verifica se 10 segundos se passaram para ativar o chefão
+            if not boss_active and (pygame.time.get_ticks() - start_time) > 10000:
+                boss_active = True
+                bossY = 0  # Inicia o chefão na parte superior da tela
+
+            if boss_active:
+                if exploding_boss:
+                    # Continua a animação de explosão do chefão
+                    exploding_boss['timer'] += 1
+                    alpha = int(255 * (1 - exploding_boss['timer'] / EXPLOSION_DURATION))
+                    burst(bossX, bossY, alpha)
+                    
+                    if exploding_boss['timer'] >= EXPLOSION_DURATION:
+                        exploding_boss = None  # Termina a explosão
+                    continue
+
+                # Move o chefão para cima e para baixo
+                bossY += bossY_change
+                if bossY <= 0 or bossY >= 400:  # Limites de movimento do chefão
+                    bossY_change *= -1
+                boss(bossX, bossY)
+
+                # Verifica colisão entre bala e chefão
+                collision_boss = isCollision(bossX, bossY, bulletX, bulletY)
+                if collision_boss and bullet_state == "fire":
+                    bulletY = 480
+                    bullet_state = "ready"
+                    boss_hits += 1
+
+                    # Inicia animação de explosão
+                    exploding_boss = {'timer': 0}
+
+                    if boss_hits >= BOSS_HIT_LIMIT:
+                        boss_active = False  # Derrota o chefão
+                        bossY = -200  # Reinicia a posição do chefão
+                        boss_hits = 0  # Reinicia o contador de acertos
+                        exploding_boss = None  # Termina a explosão
+
         else:
             # Limpa a tela
             screen.fill((0, 0, 0))
