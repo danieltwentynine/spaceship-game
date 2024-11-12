@@ -160,7 +160,10 @@ def show_score(x, y):
 # Função para mostrar texto de fim de jogo
 def game_over_text():
     # Título de game over
-    over_text = go_font.render("GAME OVER", True, (255, 255, 255))
+    if boss_hits >= BOSS_HIT_LIMIT:  # Verifica se o jogador derrotou o chefão
+        over_text = go_font.render("VOCÊ VENCEU!", True, (255, 255, 255))
+    else:
+        over_text = go_font.render("GAME OVER", True, (255, 255, 255))
     over_rect = over_text.get_rect(center=(screen.get_width() // 2, 200))
     screen.blit(over_text, over_rect)
     
@@ -190,13 +193,32 @@ def fire_bullet(x, y):
     bullet_state = "fire"
     screen.blit(bulletImg, (x + playerImg.get_width() // 2 - bulletImg.get_width() // 2, y))
     
-# Função para detectar colisão entre objetos
+# Função de colisão para inimigos normais
 def isCollision(enemyX, enemyY, bulletX, bulletY):
     distance = math.sqrt((math.pow(enemyX - bulletX, 2)) + (math.pow(enemyY - bulletY, 2)))
     if distance < 27:
         return True
     else:
         return False
+
+# Função de colisão para o chefão
+def isBossCollision(bossX, bossY, bulletX, bulletY):
+    margin = 20
+    boss_rect = pygame.Rect(
+        bossX + margin, 
+        bossY + margin, 
+        bossImg.get_width() - 2*margin, 
+        bossImg.get_height() - 2*margin
+    )
+    
+    bullet_rect = pygame.Rect(
+        bulletX,
+        bulletY,
+        bulletImg.get_width(),
+        bulletImg.get_height()
+    )
+    
+    return boss_rect.colliderect(bullet_rect)
 
 # Função para reiniciar o jogo
 def reset_game():
@@ -222,17 +244,24 @@ game_over = False
 
 # Variáveis para animação de explosão
 exploding_enemies = {}
-EXPLOSION_DURATION = 30  # Duração da explosão em frames
+EXPLOSION_DURATION = 30  # Duração da explosão dos inimigos normais em frames
+BOSS_EXPLOSION_DURATION = 10  # Duração reduzida para a explosão do chefão em frames
 
 # Variáveis do chefão
 bossImg = pygame.image.load('./assets/enemies/boss.png')
-bossImg = pygame.transform.scale(bossImg, (200, 200))  # Redimensiona para 200x200
-bossX = 300  # Ajusta a posição inicial para centralizar
-bossY = -200  # Começa fora da tela
+bossImg = pygame.transform.scale(bossImg, (200, 200))
+bossX = 300
+bossY = -200
 bossY_change = 2
 boss_active = False
-boss_hits = 0  # Contador de acertos no chefão
-BOSS_HIT_LIMIT = 12  # Número de acertos necessários para derrotar o chefão
+boss_hits = 0
+BOSS_HIT_LIMIT = 12
+
+# Adicionar novas variáveis para movimento triangular do chefão
+bossX_change = 3
+boss_moving_right = True
+boss_top_y = 50  # Ponto mais alto do triângulo
+boss_bottom_y = 240  # Ponto mais baixo do triângulo
 
 # Variáveis para animação de explosão
 exploding_boss = None
@@ -287,6 +316,7 @@ while running:
                 if game_over:
                     if event.key == pygame.K_r:  # Tecla R para reiniciar
                         game_over = False
+                        boss_hits = 0  # Reinicia os hits do chefão
                         reset_game()
                     elif event.key == pygame.K_q:  # Tecla Q para sair
                         running = False
@@ -327,27 +357,6 @@ while running:
             
             # Processa movimento e colisões dos inimigos
             for i in range(num_of_enemies):
-                if i in exploding_enemies:
-                    # Continua a animação de explosão
-                    exploding_enemies[i]['timer'] += 1
-                    alpha = int(255 * (1 - exploding_enemies[i]['timer'] / EXPLOSION_DURATION))
-                    burst(enemyX[i], enemyY[i], alpha)
-                    enemy(enemyX[i], enemyY[i], i, alpha)
-                    
-                    if exploding_enemies[i]['timer'] >= EXPLOSION_DURATION:
-                        # Reposiciona o inimigo após a explosão
-                        enemyX[i] = random.randint(0, 735)
-                        enemyY[i] = random.randint(50, 150)
-                        del exploding_enemies[i]
-                    continue
-                
-                # Verifica condição de fim de jogo
-                if enemyY[i] > 440:
-                    for j in range(num_of_enemies):
-                        enemyY[j] = 2000
-                    game_over = True
-                    break
-                
                 # Move os inimigos
                 enemyX[i] += enemyX_change[i]
                 if enemyX[i] <= 0:
@@ -356,7 +365,19 @@ while running:
                 elif enemyX[i] >= 736:
                     enemyX_change[i] = -5
                     enemyY[i] += enemyY_change[i]
+
+                if i in exploding_enemies:
+                    exploding_enemies[i]['timer'] += 1
+                    alpha = int(255 * (1 - exploding_enemies[i]['timer'] / EXPLOSION_DURATION))
+                    burst(enemyX[i], enemyY[i], alpha)
+                    enemy(enemyX[i], enemyY[i], i, alpha)
                     
+                    if exploding_enemies[i]['timer'] >= EXPLOSION_DURATION:
+                        enemyX[i] = random.randint(0, 735)
+                        enemyY[i] = random.randint(50, 150)
+                        del exploding_enemies[i]
+                    continue
+                
                 # Verifica colisão entre bala e inimigo
                 collision_bullet = isCollision(enemyX[i], enemyY[i], bulletX, bulletY)
                 if collision_bullet and bullet_state == "fire":
@@ -366,15 +387,13 @@ while running:
                     bulletY = 480
                     bullet_state = "ready"
                     score_value += 1
-
-                    # Inicia animação de explosão
                     exploding_enemies[i] = {'timer': 0}
 
                 # Verifica colisão entre inimigo e jogador
                 collision_player = isCollision(enemyX[i], enemyY[i], playerX, playerY)
                 if collision_player:
                     explosion_sound = mixer.Sound('./assets/sound/explosion.wav')
-                    explosion_sound.set_volume(0.7)  # 70% do volume original
+                    explosion_sound.set_volume(0.7)
                     explosion_sound.play()
                     player_lives -= 1
                     if player_lives <= 0:
@@ -383,10 +402,8 @@ while running:
                         game_over = True
                         break
                     else:
-                        # Inicia efeito de piscar
                         player_blinking = True
                         player_blink_start = pygame.time.get_ticks()
-                        # Reposiciona o inimigo
                         enemyX[i] = random.randint(0, 735)
                         enemyY[i] = random.randint(50, 150)
 
@@ -422,36 +439,48 @@ while running:
 
             if boss_active:
                 if exploding_boss:
-                    # Continua a animação de explosão do chefão
                     exploding_boss['timer'] += 1
-                    alpha = int(255 * (1 - exploding_boss['timer'] / EXPLOSION_DURATION))
+                    alpha = int(255 * (1 - exploding_boss['timer'] / BOSS_EXPLOSION_DURATION))
                     burst(bossX, bossY, alpha)
                     
-                    if exploding_boss['timer'] >= EXPLOSION_DURATION:
-                        exploding_boss = None  # Termina a explosão
-                    continue
+                    if exploding_boss['timer'] >= BOSS_EXPLOSION_DURATION:
+                        exploding_boss = None
+                        if boss_hits >= BOSS_HIT_LIMIT:  # Chefão foi derrotado
+                            boss_active = False
+                            bossY = -200
+                            game_over = True
+                            # Limpa a tela
+                            screen.fill((0, 0, 0))
+                            screen.blit(background, (0, 0))
+                            # Mostra a tela de game over
+                            game_over_text()
+                else:
+                    # Movimento triangular do chefão
+                    if boss_moving_right:
+                        bossX += bossX_change
+                        if bossY < boss_bottom_y:
+                            bossY += bossY_change
+                        if bossX >= 600:
+                            boss_moving_right = False
+                    else:
+                        bossX -= bossX_change
+                        if bossY > boss_top_y:
+                            bossY -= bossY_change
+                        if bossX <= 0:
+                            boss_moving_right = True
+                    
+                    boss(bossX, bossY)
 
-                # Move o chefão para cima e para baixo
-                bossY += bossY_change
-                if bossY <= 0 or bossY >= 400:  # Limites de movimento do chefão
-                    bossY_change *= -1
-                boss(bossX, bossY)
-
-                # Verifica colisão entre bala e chefão
-                collision_boss = isCollision(bossX, bossY, bulletX, bulletY)
-                if collision_boss and bullet_state == "fire":
-                    bulletY = 480
-                    bullet_state = "ready"
-                    boss_hits += 1
-
-                    # Inicia animação de explosão
-                    exploding_boss = {'timer': 0}
-
-                    if boss_hits >= BOSS_HIT_LIMIT:
-                        boss_active = False  # Derrota o chefão
-                        bossY = -200  # Reinicia a posição do chefão
-                        boss_hits = 0  # Reinicia o contador de acertos
-                        exploding_boss = None  # Termina a explosão
+                    if bullet_state == "fire":
+                        collision_boss = isBossCollision(bossX, bossY, bulletX, bulletY)
+                        if collision_boss:
+                            explosion = mixer.Sound('./assets/sound/explosion.wav')
+                            explosion.set_volume(0.7)
+                            explosion.play()
+                            bulletY = 480
+                            bullet_state = "ready"
+                            boss_hits += 1
+                            exploding_boss = {'timer': 0}
 
         else:
             # Limpa a tela
