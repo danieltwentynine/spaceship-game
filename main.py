@@ -45,7 +45,7 @@ enemyY = []
 enemyX_change = []
 enemyY_change = []
 # Define o número total de inimigos
-num_of_enemies = 6
+num_of_enemies = 8
 
 # Inicializa cada inimigo com posições e velocidades aleatórias
 for i in range(num_of_enemies):
@@ -446,7 +446,7 @@ while running:
             show_score(textX, textY)
 
             # Verifica se 10 segundos se passaram para ativar o chefão
-            if not boss_active and (pygame.time.get_ticks() - start_time) > 10000:
+            if not boss_active and (pygame.time.get_ticks() - start_time) > 20000:
                 boss_active = True
                 bossY = 0  # Inicia o chefão na parte superior da tela
 
