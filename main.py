@@ -223,6 +223,9 @@ def isBossCollision(bossX, bossY, bulletX, bulletY):
 # Função para reiniciar o jogo
 def reset_game():
     global score_value, playerX, playerY, bulletX, bulletY, bullet_state, player_lives
+    global boss_active, boss_hits, bossY, start_time, exploding_boss, game_started
+
+    # Reinicia variáveis do jogador
     score_value = 0
     playerX = 370
     playerY = 480
@@ -230,10 +233,21 @@ def reset_game():
     bulletY = 480
     bullet_state = "ready"
     player_lives = 3
+
+    # Reinicia variáveis do chefão
+    boss_active = False
+    boss_hits = 0
+    bossY = -200
+    exploding_boss = None
+
+    # Reinicia o tempo para controlar o surgimento do chefão
+    start_time = pygame.time.get_ticks()
+
+    # Reinicia posição dos inimigos
     for i in range(num_of_enemies):
         enemyX[i] = random.randint(0, 735)
         enemyY[i] = random.randint(50, 150)
-    
+
 # Define a velocidade de interpolação para movimento suave
 interpolation_speed = 0.1
 
@@ -252,13 +266,13 @@ bossImg = pygame.image.load('./assets/enemies/boss.png')
 bossImg = pygame.transform.scale(bossImg, (200, 200))
 bossX = 300
 bossY = -200
-bossY_change = 2
+bossY_change = 4
 boss_active = False
 boss_hits = 0
-BOSS_HIT_LIMIT = 12
+BOSS_HIT_LIMIT = 10
 
 # Adicionar novas variáveis para movimento triangular do chefão
-bossX_change = 3
+bossX_change = 5
 boss_moving_right = True
 boss_top_y = 50  # Ponto mais alto do triângulo
 boss_bottom_y = 240  # Ponto mais baixo do triângulo
@@ -316,8 +330,7 @@ while running:
                 if game_over:
                     if event.key == pygame.K_r:  # Tecla R para reiniciar
                         game_over = False
-                        boss_hits = 0  # Reinicia os hits do chefão
-                        reset_game()
+                        reset_game()  # Reinicia completamente o jogo
                     elif event.key == pygame.K_q:  # Tecla Q para sair
                         running = False
                 else:
