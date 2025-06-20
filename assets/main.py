@@ -475,6 +475,3 @@ async def main():
             pygame.display.update()
             clock.tick(60)
             await asyncio.sleep(0)  # Essential for PyBag compatibility
-
-if __name__ == "__main__":
-    asyncio.run(main())
